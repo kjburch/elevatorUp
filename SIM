@@ -140,7 +140,7 @@ class Building:
         while len(self.waitingPeople) > 0 and emptyElevators:
             emptyElevators = False
             for i in waitingElevators:
-                if len(self.elevators[i].passengers) < elevatorCapacity and len(self.waitingPeople) > 0:
+                if len(self.elevators[i].passengers) <= elevatorCapacity and len(self.waitingPeople) > 0:
                     self.elevators[i].passengers.append(self.waitingPeople.pop(0))
                     emptyElevators = True
 
@@ -363,14 +363,14 @@ def main():
     for stop in tempStops:
         for st in stop:
             s.append(st)
-    print("OUTPUT stops " , format(np.mean(s),'.5f'))
+    print("OUTPUT stops " , format(welfordMean(s),'.5f'))
     print("OUTPUT max qsize  ", maxQ)
     dly = []
     for di in tempDelay:
         for j in di:
             dly.append(j)
-    print("OUTPUT average delay ", format(np.mean(dly),'.5f'))
-    print("OUTPUT stddev delay ", format(np.std(dly),'.5f'))
+    print("OUTPUT average delay ", format(welfordMean(dly),'.5f'))
+    print("OUTPUT stddev delay ", format(welfordStd(dly),'.5f'))
 
 
 if __name__ == '__main__':
