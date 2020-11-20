@@ -64,14 +64,15 @@ class Person:
 
 # Creates an elevator
 class Elevator:
-    def __init__(self):
+    def __init__(self, tag):
+        self.id = tag
         self.currentFloor = 0
         self.passengers = []
         self.time = 0
         self.totalStops = 0
 
     def __str__(self):
-        temp = "Elevator Time: "+str(self.time)+" - Current Floor: "+str(self.currentFloor)+" - Passengers: [ "
+        temp = "Tag: "+str(self.tag)+" - Elevator Time: "+str(self.time)+" - Current Floor: "+str(self.currentFloor)+" - Passengers: [ "
         for p in self.passengers:
             temp += str(p.destinationFloor)+" "
         return temp+"]"
@@ -87,10 +88,10 @@ class Elevator:
         else:
             # print("Going up")
             # Determine the next floor
-            f = floors
+            nf = []
             for p in self.passengers:
-                if p.destinationFloor < f:
-                    f = p.destinationFloor
+                nf.append(p.destinationFloor)
+            f = min(nf)
             # Increment Travel Time
             self.time += travelTime(f-self.currentFloor)
             self.currentFloor = f
@@ -103,8 +104,10 @@ class Elevator:
         ul = []
         for p in self.passengers:
             if p.destinationFloor == self.currentFloor:
-                ul.append(self.passengers.pop(self.passengers.index(p)))
-        self.time = globalTime+boardingTime(len(self.passengers))
+                ul.append(p)
+        for p in ul:
+            self.passengers.remove(p)
+        self.time = globalTime+boardingTime(len(ul))
         self.nextFloor()
         return ul
 
@@ -118,7 +121,7 @@ class Building:
             self.floors.append([])
         self.elevators = []
         for i in range(0, elevators):
-            self.elevators.append(Elevator())
+            self.elevators.append(Elevator(i))
         self.globalTime = 0
         self.waitingPeople = []
 
@@ -129,18 +132,17 @@ class Building:
         for e in self.elevators:
             # Elevators need to have passenger room left, there needs to be waiting passengers, and the elevator needs
             # to be not in transit
-            if e.currentFloor == 0 and len(e.passengers) < elevatorCapacity and len(
-                    self.waitingPeople) > 0 and e.time <= self.globalTime:
+            if e.currentFloor == 0 and e.time <= self.globalTime:
                 waitingElevators.append(self.elevators.index(e))
 
         # Load passengers onto elevators until there are either no passengers or no elevators left
-        wait = True
-        while wait:
-            wait = False
+        emptyElevators = True
+        while len(self.waitingPeople) > 0 and emptyElevators:
+            emptyElevators = False
             for i in waitingElevators:
                 if len(self.elevators[i].passengers) < elevatorCapacity and len(self.waitingPeople) > 0:
-                    wait = True
                     self.elevators[i].passengers.append(self.waitingPeople.pop(0))
+                    emptyElevators = True
 
         # Change Elevator Time and send elevators to their next floor
         for i in waitingElevators:
@@ -333,7 +335,7 @@ def main():
                     if len(openFloors) > 0:
                         # Randomly choose a destination floor from open floors
                         # Change for linux
-                        randomFloor = math.floor(nextRandom())
+                        randomFloor = math.floor(nextRandom()*len(openFloors))
                         remainingFloorCapacity[openFloors[randomFloor]] -= 1
                         # add new waiting person with random destination floor
                         building.waitingPeople.append(
@@ -361,14 +363,14 @@ def main():
     for stop in tempStops:
         for st in stop:
             s.append(st)
-    print("OUTPUT stops " , format(np.mean(s),'.5f'))
+    print("OUTPUT stops " , format(welfordMean(s),'.5f'))
     print("OUTPUT max qsize  ", maxQ)
     dly = []
     for di in tempDelay:
         for j in di:
             dly.append(j)
-    print("OUTPUT average delay ", format(np.mean(dly),'.5f'))
-    print("OUTPUT stddev delay ", format(np.std(dly),'.5f'))
+    print("OUTPUT average delay ", format(welfordMean(dly),'.5f'))
+    print("OUTPUT stddev delay ", format(welfordStd(dly),'.5f'))
 
 
 if __name__ == '__main__':
