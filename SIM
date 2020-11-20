@@ -80,21 +80,19 @@ class Elevator:
     # Determine the next destination floor then update time and move to floor
     def nextFloor(self):
         self.totalStops += 1
-        # Return to floor zero if there are no passengers
-        if len(self.passengers) == 0:
-            # print("Back to floor 0")
-            self.time += travelTime(self.currentFloor)
-            self.currentFloor = 0
+
+        # Determine the next floor
+        nf = []
+        for p in self.passengers:
+            nf.append(p.destinationFloor)
+        if len(nf) > 0:
+            newFloor = min(nf)
         else:
-            # print("Going up")
-            # Determine the next floor
-            nf = []
-            for p in self.passengers:
-                nf.append(p.destinationFloor)
-            f = min(nf)
-            # Increment Travel Time
-            self.time += travelTime(f-self.currentFloor)
-            self.currentFloor = f
+            newFloor = 0
+
+        # Increment Travel Time
+        self.time += travelTime(abs(newFloor-self.currentFloor))
+        self.currentFloor = newFloor
 
     def loadAndGo(self, globalTime):
         self.time = globalTime+boardingTime(len(self.passengers))
