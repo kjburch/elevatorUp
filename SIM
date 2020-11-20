@@ -140,7 +140,7 @@ class Building:
         while len(self.waitingPeople) > 0 and emptyElevators:
             emptyElevators = False
             for i in waitingElevators:
-                if len(self.elevators[i].passengers) <= elevatorCapacity and len(self.waitingPeople) > 0:
+                if len(self.elevators[i].passengers) < elevatorCapacity and len(self.waitingPeople) > 0:
                     self.elevators[i].passengers.append(self.waitingPeople.pop(0))
                     emptyElevators = True
 
@@ -296,66 +296,39 @@ def exponentialTCI():
 #  Main ----------------------------------------------------------------------------------------------
 def main():
     global maxQ
-    tempDelay = []
     tempStops = []
-    for d in range(0, days):
+    tempDelay = []
+    for day in range(0, days):
+        remainingCapacity = []
+        for i in range(0, floors):
+            remainingCapacity.append(people)
+
         building = Building()
 
-        remainingFloorCapacity = [people] * floors
+        while sum(len(row) for row in building.floors) < people * floors:
+            print(remainingCapacity)
+            print(sum(len(row) for row in building.floors))
+            nextGroup = int(exponentialTCI())
 
-        timeOfPriorGroup = 0
-        full = False
-        lock = True
-        timeOfNextGroup = 0
-
-        # Run sim while there are still floors that are not full
-        while not full:
-            # Get arrival time of next group
-            if lock:
-                timeOfNextGroup = int(exponentialTCI())
-                lock = False
-
-            # If the group has arrived, generate new people
-            if building.globalTime-timeOfPriorGroup >= timeOfNextGroup:
-                timeOfPriorGroup = building.globalTime
-                # Allow a new group arrival time to be generated
-                lock = True
-
-                # Determine group size
-                groupSize = int(cdfModRandom())
-
-                # Generate num Group Size new people
-                for i in range(groupSize):
-                    openFloors = []
-                    for j in range(0, len(remainingFloorCapacity)):
-                        if remainingFloorCapacity[j] > 0:
-                            openFloors.append(j)
-
-                    # If there is no remaining space, do nothing
-                    if len(openFloors) > 0:
-                        # Randomly choose a destination floor from open floors
-                        # Change for linux
-                        randomFloor = math.floor(nextRandom()*len(openFloors))
-                        remainingFloorCapacity[openFloors[randomFloor]] -= 1
-                        # add new waiting person with random destination floor
-                        building.waitingPeople.append(
-                            Person(arrivalTime=building.globalTime, destinationFloor=openFloors[randomFloor]+1))
-
-            # Determine if sim is done
-            full = True
-            for rfc in building.floors:
-                if len(rfc) < people:
-                    full = False
-
-            # Continue to the next second if the building is not full
-            if not full:
+            for i in range(0, nextGroup):
                 building.proceed()
 
-        # Create a list of all of the delays on all of the floors on all of the days
+            groupSize = int(cdfModRandom())
+            for i in range(0, groupSize):
+
+                optionFloors = []
+                for j in range(0, len(remainingCapacity)):
+                    if remainingCapacity[j] > 0:
+                        optionFloors.append(j)
+
+                if len(optionFloors) > 0:
+                    floor = int(len(optionFloors) * nextRandom())
+                    remainingCapacity[optionFloors[floor]] -= 1
+                    building.waitingPeople.append(Person(optionFloors[floor]+1, building.globalTime))
+
         tempDelay.append(building.getDelay())
         tempStops.append(building.getStops())
 
-        # Determine the maximum wait across all days
         if maxQ < building.maxWaiting:
             maxQ = building.maxWaiting
 
