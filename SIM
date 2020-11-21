@@ -201,7 +201,7 @@ def travelTime(h):
 # Calculates how long it will take for n num of passengers to board
 def boardingTime(n):
     if n == 10:
-        return 22
+        return 21
     else:
         return 1+(n * 2)
 
@@ -304,8 +304,6 @@ def main():
         building = Building()
 
         while sum(len(row) for row in building.floors) < people * floors:
-            print(remainingCapacity)
-            print(sum(len(row) for row in building.floors))
             nextGroup = int(exponentialTCI())
 
             for i in range(0, nextGroup):
