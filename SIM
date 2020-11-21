@@ -12,7 +12,7 @@ import numpy as np
 # Number of people on each floor
 people = 100
 # Maximum elevator capacity
-elevatorCapacity = 11 
+elevatorCapacity = 9
 
 # Outputs
 maxQ = 0
@@ -201,7 +201,7 @@ def travelTime(h):
 # Calculates how long it will take for n num of passengers to board
 def boardingTime(n):
     if n == 10:
-        return 21
+        return 22
     else:
         return 1+(n * 2)
 
