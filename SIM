@@ -12,7 +12,7 @@ import numpy as np
 # Number of people on each floor
 people = 100
 # Maximum elevator capacity
-elevatorCapacity = 9
+elevatorCapacity = 10
 
 # Outputs
 maxQ = 0
@@ -200,9 +200,8 @@ def travelTime(h):
 
 # Calculates how long it will take for n num of passengers to board
 def boardingTime(n):
-    n=n+1
     if n == 10:
-        return 21
+        return 22
     else:
         return 1+(n * 2)
 
@@ -249,7 +248,7 @@ def welfordStd(lst):
 
 # Random distribution functions ----------------------------------------------------------------
 def geometricCDF(x):
-    return 1-(1-0.65) ** (x+1)
+    return (1-0.65) ** (x+1)
 
 
 def truncatedGeometricCdf(x):
