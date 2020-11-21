@@ -202,7 +202,7 @@ def travelTime(h):
 def boardingTime(n):
     n=n+1
     if n == 10:
-        return 22
+        return 21
     else:
         return 1+(n * 2)
 
