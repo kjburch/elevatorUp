@@ -201,7 +201,7 @@ def travelTime(h):
 # Calculates how long it will take for n num of passengers to board
 def boardingTime(n):
     if n == 10:
-        return 22
+        return 21
     else:
         return 1+(n * 2)
 
