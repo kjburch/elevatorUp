@@ -7,12 +7,13 @@
 import math
 import sys
 import numpy as np
+from queue import Queue
 
 # Setup -------------------------------------------------------------------------------------------------
 # Number of people on each floor
 people = 100
 # Maximum elevator capacity
-elevatorCapacity = 9
+elevatorCapacity = 10
 
 # Outputs
 maxQ = 0
@@ -162,14 +163,6 @@ class Building:
                 p.completionTime = self.globalTime+boardingTime(len(temp))
                 self.floors[p.destinationFloor-1].append(p)
 
-    # Moves time forward and makes the necessary calls
-    def proceed(self):
-        self.loadPassengers()
-        self.unloadPassengers()
-        if len(self.waitingPeople) > self.maxWaiting:
-            self.maxWaiting = len(self.waitingPeople)
-        self.globalTime += 1
-
     def getDelay(self):
         d = []
         for floor in self.floors:
@@ -302,25 +295,37 @@ def main():
             remainingCapacity.append(people)
 
         building = Building()
+        events = Queue(maxsize=0)
+        events.put(0)
 
         while sum(len(row) for row in building.floors) < people * floors:
+            e = events.get()
+
             nextGroup = int(exponentialTCI())
+            
+            if e == 0:
+                for i in range(0, nextGroup):
+                    events.put(2)
+                    events.put(3)
+                events.put(1)
+            elif e == 1:
+                groupSize = int(cdfModRandom())
+                for i in range(0, groupSize):
+                    optionFloors = []
+                    for j in range(0, len(remainingCapacity)):
+                        if remainingCapacity[j] > 0:
+                            optionFloors.append(j)
 
-            for i in range(0, nextGroup):
-                building.proceed()
-
-            groupSize = int(cdfModRandom())
-            for i in range(0, groupSize):
-
-                optionFloors = []
-                for j in range(0, len(remainingCapacity)):
-                    if remainingCapacity[j] > 0:
-                        optionFloors.append(j)
-
-                if len(optionFloors) > 0:
-                    floor = int(len(optionFloors) * nextRandom())
-                    remainingCapacity[optionFloors[floor]] -= 1
-                    building.waitingPeople.append(Person(optionFloors[floor]+1, building.globalTime))
+                    if len(optionFloors) > 0:
+                        floor = int(len(optionFloors) * nextRandom())
+                        remainingCapacity[optionFloors[floor]] -= 1
+                        building.waitingPeople.append(Person(optionFloors[floor]+1, building.globalTime))
+                events.put(0)
+            elif e == 2:
+                building.loadPassengers()
+            elif e == 3:
+                building.unloadPassengers()
+                building.globalTime += 1
 
         tempDelay.append(building.getDelay())
         tempStops.append(building.getStops())
