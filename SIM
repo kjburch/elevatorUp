@@ -12,7 +12,7 @@ import numpy as np
 # Number of people on each floor
 people = 100
 # Maximum elevator capacity
-elevatorCapacity = 9
+elevatorCapacity = 11 
 
 # Outputs
 maxQ = 0
