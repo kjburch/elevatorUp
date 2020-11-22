@@ -1,0 +1,356 @@
+#!/usr/bin/env python3.8
+
+# Kyle J Burch
+# Computer Simulations
+# 10/9/20
+
+import math
+import sys
+import numpy as np
+from queue import Queue
+
+# Setup -------------------------------------------------------------------------------------------------
+# Number of people on each floor
+people = 100
+# Maximum elevator capacity
+elevatorCapacity = 10
+
+# Outputs
+maxQ = 0
+stops = 0
+avgDelay = 0
+stdDelay = 0
+
+# Get the arguments
+arguments = sys.argv
+arguments = (0, 20, 4, [0.7] * 100000, 1)
+# Get the num of floors in the building
+floors = int(arguments[1])
+# Get the num of elevators in the building
+elevators = int(arguments[2])
+# Get the random nums
+rand = arguments[3]
+# Get the num of days to run the sim
+days = int(arguments[4])
+
+
+# Classes  -------------------------------------------------------------------------------------------------
+# Creates an elevator rider
+class Person:
+    completionTime = -1
+
+    def __init__(self, destinationFloor, arrivalTime):
+        self.destinationFloor = destinationFloor
+        self.arrivalTime = arrivalTime
+
+    # Prints the passenger
+    def __str__(self):
+        if self.completionTime != -1:
+            return "Destination floor: " + str(self.destinationFloor) + " - Total Travel Time: " + str(
+                self.completionTime - self.arrivalTime) + " - Arrival Time: " + str(
+                self.arrivalTime) + " - Completion Time: " + str(self.completionTime) + " - Normalized Delay: " + str(
+                self.normalizedDelay())
+        return "Person has not completed their travel yet"
+
+    # Calculates the total travel time
+    def totalTravelTime(self):
+        return self.completionTime - self.arrivalTime
+
+    # Calculates the normalized delay for the passenger
+    def normalizedDelay(self):
+        optimalTime = travelTime(self.destinationFloor) + boardingTime(1) + boardingTime(1)
+        return (self.totalTravelTime() - optimalTime) / optimalTime
+
+
+# Creates an elevator
+class Elevator:
+    def __init__(self, tag):
+        self.id = tag
+        self.currentFloor = 0
+        self.passengers = []
+        self.time = 0
+        self.totalStops = 0
+
+    def __str__(self):
+        temp = "Tag: " + str(self.tag) + " - Elevator Time: " + str(self.time) + " - Current Floor: " + str(
+            self.currentFloor) + " - Passengers: [ "
+        for p in self.passengers:
+            temp += str(p.destinationFloor) + " "
+        return temp + "]"
+
+    # Determine the next destination floor then update time and move to floor
+    def nextFloor(self):
+        self.totalStops += 1
+
+        # Determine the next floor
+        nf = []
+        for p in self.passengers:
+            nf.append(p.destinationFloor)
+        if len(nf) > 0:
+            newFloor = min(nf)
+        else:
+            newFloor = 0
+
+        # Increment Travel Time
+        self.time += travelTime(abs(newFloor - self.currentFloor))
+        self.currentFloor = newFloor
+
+    def loadAndGo(self, globalTime):
+        self.time = globalTime + boardingTime(len(self.passengers))
+        self.nextFloor()
+
+    def unloadAndGo(self, globalTime):
+        ul = []
+        for p in self.passengers:
+            if p.destinationFloor == self.currentFloor:
+                ul.append(p)
+        for p in ul:
+            self.passengers.remove(p)
+        self.time = globalTime + boardingTime(len(ul))
+        self.nextFloor()
+        return ul
+
+
+# Creates a building to run everything
+class Building:
+    def __init__(self):
+        self.maxWaiting = 0
+        self.floors = []
+        for i in range(0, floors):
+            self.floors.append([])
+        self.elevators = []
+        for i in range(0, elevators):
+            self.elevators.append(Elevator(i))
+        self.globalTime = 0
+        self.waitingPeople = []
+
+    # Load passengers that are waiting
+    def loadPassengers(self):
+        # Determine which elevators are eligible for loading
+        waitingElevators = []
+        for e in self.elevators:
+            # Elevators need to have passenger room left, there needs to be waiting passengers, and the elevator needs
+            # to be not in transit
+            if e.currentFloor == 0 and e.time <= self.globalTime:
+                waitingElevators.append(self.elevators.index(e))
+
+        # Load passengers onto elevators until there are either no passengers or no elevators left
+        emptyElevators = True
+        while len(self.waitingPeople) > 0 and emptyElevators:
+            emptyElevators = False
+            for i in waitingElevators:
+                if len(self.elevators[i].passengers) < elevatorCapacity and len(self.waitingPeople) > 0:
+                    self.elevators[i].passengers.append(self.waitingPeople.pop(0))
+                    emptyElevators = True
+
+        # Change Elevator Time and send elevators to their next floor
+        for i in waitingElevators:
+            if len(self.elevators[i].passengers) > 0:
+                self.elevators[i].loadAndGo(self.globalTime)
+
+        if self.maxWaiting < len(self.waitingPeople):
+            self.maxWaiting = len(self.waitingPeople)
+
+    # Unload passengers that have reached their floors
+    def unloadPassengers(self):
+        # Determine which elevators are eligible for unloading
+        waitingElevators = []
+        for e in self.elevators:
+            # Elevators need to be at a nonzero floor, and be at global time
+            if e.currentFloor != 0 and e.time == self.globalTime:
+                waitingElevators.append(self.elevators.index(e))
+
+        for i in waitingElevators:
+            temp = self.elevators[i].unloadAndGo(self.globalTime)
+            for p in temp:
+                p.completionTime = self.globalTime + boardingTime(len(temp))
+                self.floors[p.destinationFloor - 1].append(p)
+
+    def getDelay(self):
+        d = []
+        for floor in self.floors:
+            for p in floor:
+                d.append(p.normalizedDelay())
+        return d
+
+    def getStops(self):
+        e = []
+        for elevator in self.elevators:
+            e.append(elevator.totalStops)
+        return e
+
+
+# Helper functions --------------------------------------------------------------------------
+# Calculates the amount of time in seconds is required to travel h floors
+def travelTime(h):
+    if h == 1:
+        return 8
+    elif h > 1:
+        return 2 * 8 + 5 * (h - 2)
+    elif h == 0:
+        return 0
+    else:
+        print("Invalid floor num")
+        return -1
+
+
+# Calculates how long it will take for n num of passengers to board
+def boardingTime(n):
+    if n == 10:
+        return 22
+    else:
+        return 1 + (n * 2)
+
+
+# Get next random num from file
+def nextRandom():
+    try:
+        r = rand.pop(0)
+        return float(r)
+    except:
+        exit(1)
+
+
+# Welford Equations --------------------------------------------------------------------------
+def welfordMean(lst):
+    k = 0
+    M = 0
+    S = 0
+
+    for x in lst:
+        if x is None:
+            return
+        k += 1
+        newM = M + (x - M) * 1. / k
+        newS = S + (x - M) * (x - newM)
+        M, S = newM, newS
+
+    return M
+
+
+def welfordStd(lst):
+    k = 0
+    M = 0
+    S = 0
+
+    for x in lst:
+        if x is None:
+            return
+        k += 1
+        newM = M + (x - M) * 1. / k
+        newS = S + (x - M) * (x - newM)
+        M, S = newM, newS
+
+    return (S / (k - 1)) ** 0.5
+
+
+# Random distribution functions ----------------------------------------------------------------
+def geometricCDF(x):
+    return (1 - 0.65) ** (x + 1)
+
+
+def truncatedGeometricCdf(x):
+    return (geometricCDF(x) - geometricCDF(1)) / (geometricCDF(8) - geometricCDF(1))
+
+
+# Calculates a cdf truncated variable
+def cdfModRandom():
+    # Get next rand from file
+    u = nextRandom()
+    randomVariate = 4
+    # Find a random variate from truncate cdf
+    if truncatedGeometricCdf(randomVariate) <= u:
+        while truncatedGeometricCdf(randomVariate) <= u:
+            randomVariate += 1
+    elif truncatedGeometricCdf(2) <= u:
+        while truncatedGeometricCdf(randomVariate - 1) > u:
+            randomVariate -= 1
+    else:
+        randomVariate = 2
+        # return random variate
+    return randomVariate
+
+
+def exponentialFunction(x):
+    return 1 - math.e ** (-x / 10)
+
+
+def invertedExponentialCDF(u):
+    return -10 * math.log(1 - u)
+
+
+# Calculates the random variate using TCI
+def exponentialTCI():
+    r = nextRandom()
+    alpha = exponentialFunction(2)
+    beta = 1.0 - exponentialFunction(90)
+    u = (((1 - beta) - alpha) * r) + alpha
+    randomVariate = invertedExponentialCDF(u)
+    return randomVariate
+
+
+#  Main ----------------------------------------------------------------------------------------------
+def main():
+    global maxQ
+    tempStops = []
+    tempDelay = []
+    for day in range(0, days):
+        remainingCapacity = []
+        for i in range(0, floors):
+            remainingCapacity.append(people)
+
+        building = Building()
+        events = Queue(maxsize=0)
+        events.put(0)
+
+        while sum(len(row) for row in building.floors) < people * floors:
+            e = events.get()
+
+            nextGroup = int(exponentialTCI())
+
+            if e == 0:
+                for i in range(0, nextGroup):
+                    events.put(2)
+                    events.put(3)
+                events.put(1)
+            elif e == 1:
+                groupSize = int(cdfModRandom())
+                for i in range(0, groupSize):
+                    optionFloors = []
+                    for j in range(0, len(remainingCapacity)):
+                        if remainingCapacity[j] > 0:
+                            optionFloors.append(j)
+
+                    if len(optionFloors) > 0:
+                        floor = int(len(optionFloors) * nextRandom())
+                        remainingCapacity[optionFloors[floor]] -= 1
+                        building.waitingPeople.append(Person(optionFloors[floor] + 1, building.globalTime))
+                events.put(0)
+            elif e == 2:
+                building.loadPassengers()
+            elif e == 3:
+                building.unloadPassengers()
+                building.globalTime += 1
+
+        tempDelay.append(building.getDelay())
+        tempStops.append(building.getStops())
+
+        if maxQ < building.maxWaiting:
+            maxQ = building.maxWaiting
+
+    s = []
+    for stop in tempStops:
+        for st in stop:
+            s.append(st)
+    print("OUTPUT stops ", format(welfordMean(s), '.5f'))
+    print("OUTPUT max qsize  ", maxQ)
+    dly = []
+    for di in tempDelay:
+        for j in di:
+            dly.append(j)
+    print("OUTPUT average delay ", format(welfordMean(dly), '.5f'))
+    print("OUTPUT stddev delay ", format(welfordStd(dly), '.5f'))
+
+
+if __name__ == '__main__':
+    main()
